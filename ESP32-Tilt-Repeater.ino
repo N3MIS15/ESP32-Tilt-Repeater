@@ -1,16 +1,23 @@
 // ESP32 Tilt Repeater
 // By David Gray
 
-#include "BLEDevice.h"
-#include "BLEBeacon.h"
-#include "esp_deep_sleep.h"
-
-// User Settings
+/*--- USER SETTINGS ---*/
 int SCAN_TIME = 5;              // Duration to scan for bluetooth devices (in seconds).
 int TIME_TO_SLEEP = 60;         // Duration ESP32 will go to sleep between scans (in seconds).
 int fastSleep = 4;              // Scan more often if no Tilts are found. TIME_TO_SLEEP(60) / fastSleep(4) = scan every 15 seconds. Use 0 to disable.
 int repeatColour = 0;           // Choose Tilt colour to repeat. 0=All, 1=Red, 2=Green, 3=Black, 4=Purple, 5=Orange, 6=Blue, 7=Yellow, 8=Pink.
 bool Celsius = true;            // Use Celcius while logging to serial.
+//#define LOLIN32_OLED          // Comment out to disable
+
+
+/*--- INCLUDES ---*/
+#include "BLEDevice.h"
+#include "BLEBeacon.h"
+#include "esp_deep_sleep.h"
+#ifdef LOLIN32_OLED
+  #include "SSD1306.h"
+  SSD1306  display(0x3c, 5, 4);
+#endif
 
 int uS_TO_S_FACTOR = 1000000;
 BLEAdvertising *pAdvertising;
@@ -96,7 +103,7 @@ int parseTilt(String DevData) {
   // Get the temperature
   DevTempData = DevData.substring(32, 36);
   DevTemp = strtol(DevTempData.c_str(), NULL, 16); // Temp in Freedumb units
-
+  String SerialTemp;
   // Get the gravity
   DevGravityData = DevData.substring(36, 40);
   DevGravity = strtol(DevGravityData.c_str() , NULL, 16);
@@ -106,11 +113,13 @@ int parseTilt(String DevData) {
   Serial.println(DevColour);
   Serial.print("Temp: ");
   if (Celsius) {
-     Serial.print((DevTemp-32.0) * (5.0/9.0));
-     Serial.println(" C");
+    SerialTemp = (DevTemp-32.0) * (5.0/9.0);
+    Serial.print(SerialTemp);
+    Serial.println(" C");
   }
   else {
-    Serial.print(DevTemp);
+    SerialTemp = DevTemp;
+    Serial.print(SerialTemp);
     Serial.println(" F");
   }
   Serial.print("Gravity: ");
@@ -118,6 +127,14 @@ int parseTilt(String DevData) {
   Serial.println(DevGravityFormatted, 3);
   Serial.println(DevData);
   Serial.println("--------------------------------");
+  
+  #ifdef LOLIN32_OLED
+    display.clear();
+    display.drawString(64, 5, (DevColour + " Tilt"));
+    display.drawString(64, 25, ("Temp: " + String(SerialTemp)));
+    display.drawString(64, 45, ("Gravity: " + String(DevGravityFormatted, 3)));
+    display.display();
+  #endif
 
   BLEDevice::init("");
   //Adjust Power 3 is default, 9 is max
@@ -142,6 +159,14 @@ void setup() {
   int colourFound = 1;
   Serial.begin(115200);
 
+  #ifdef LOLIN32_OLED
+    display.init();
+    display.flipScreenVertically();
+    display.setFont(ArialMT_Plain_16);
+    display.setColor(WHITE);
+    display.setTextAlignment(TEXT_ALIGN_CENTER);
+  #endif
+
   BLEDevice::init("");
   //Adjust Power 3 is default, 9 is max
   esp_err_t errRc = esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_P9);
@@ -151,6 +176,11 @@ void setup() {
   pBLEScan->setActiveScan(true);
   Serial.println();
   Serial.println("Scanning...");
+  #ifdef LOLIN32_OLED
+    display.clear();
+    display.drawString(64, 5, ("Scanning..."));
+    display.display();
+  #endif
   BLEScanResults foundDevices = pBLEScan->start(SCAN_TIME);
   deviceCount = foundDevices.getCount();
   Serial.print(deviceCount);
