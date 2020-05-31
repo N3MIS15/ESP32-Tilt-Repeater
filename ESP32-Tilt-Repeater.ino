@@ -7,16 +7,25 @@ int TIME_TO_SLEEP = 60;         // Duration ESP32 will go to sleep between scans
 int fastSleep = 4;              // Scan more often if no Tilts are found. TIME_TO_SLEEP(60) / fastSleep(4) = scan every 15 seconds. Use 0 to disable.
 int repeatColour = 0;           // Choose Tilt colour to repeat. 0=All, 1=Red, 2=Green, 3=Black, 4=Purple, 5=Orange, 6=Blue, 7=Yellow, 8=Pink.
 bool Celsius = true;            // Use Celcius while logging to serial.
-//#define LOLIN32_OLED          // Comment out to disable
 
+
+//#define LOLIN32_OLED          // Uncomment to enable use of the Wemos Lolin32 OLED display.
+//#define I2C_16X2              // Uncomment to enable use of the i2c 16x2 LCD display. SDA = Pin D21, SCL = Pin D22
 
 /*--- INCLUDES ---*/
 #include "BLEDevice.h"
 #include "BLEBeacon.h"
 #include "esp_deep_sleep.h"
+
 #ifdef LOLIN32_OLED
   #include "SSD1306.h"
   SSD1306  display(0x3c, 5, 4);
+#endif
+
+#ifdef I2C_16X2
+  #include <Wire.h>
+  #include <LiquidCrystal_I2C.h>
+  LiquidCrystal_I2C lcd(0x27, 16, 2);
 #endif
 
 int uS_TO_S_FACTOR = 1000000;
@@ -114,14 +123,15 @@ int parseTilt(String DevData) {
   Serial.print("Temp: ");
   if (Celsius) {
     SerialTemp = (DevTemp-32.0) * (5.0/9.0);
-    Serial.print(SerialTemp);
-    Serial.println(" C");
+    SerialTemp += "C";
+    Serial.println(SerialTemp);
   }
   else {
     SerialTemp = DevTemp;
-    Serial.print(SerialTemp);
-    Serial.println(" F");
+    SerialTemp += " F";
+    Serial.println(SerialTemp);
   }
+
   Serial.print("Gravity: ");
   float DevGravityFormatted = (DevGravity / 1000);
   Serial.println(DevGravityFormatted, 3);
@@ -131,9 +141,17 @@ int parseTilt(String DevData) {
   #ifdef LOLIN32_OLED
     display.clear();
     display.drawString(64, 5, (DevColour + " Tilt"));
-    display.drawString(64, 25, ("Temp: " + String(SerialTemp)));
+    display.drawString(64, 25, ("Temp: " + SerialTemp));
     display.drawString(64, 45, ("Gravity: " + String(DevGravityFormatted, 3)));
     display.display();
+  #endif
+  
+  #ifdef I2C_16X2
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print((DevColour + " " + SerialTemp));
+    lcd.setCursor(0, 1);
+    lcd.print("Gravity: " + String(DevGravityFormatted, 3));
   #endif
 
   BLEDevice::init("");
@@ -167,6 +185,11 @@ void setup() {
     display.setTextAlignment(TEXT_ALIGN_CENTER);
   #endif
 
+  #ifdef I2C_16X2
+    lcd.init();
+    lcd.backlight();
+  #endif
+
   BLEDevice::init("");
   //Adjust Power 3 is default, 9 is max
   esp_err_t errRc = esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_P9);
@@ -176,10 +199,17 @@ void setup() {
   pBLEScan->setActiveScan(true);
   Serial.println();
   Serial.println("Scanning...");
+
   #ifdef LOLIN32_OLED
     display.clear();
     display.drawString(64, 5, ("Scanning..."));
     display.display();
+  #endif
+
+  #ifdef I2C_16X2
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Scanning...");
   #endif
   BLEScanResults foundDevices = pBLEScan->start(SCAN_TIME);
   deviceCount = foundDevices.getCount();
@@ -212,6 +242,17 @@ void setup() {
 
   if (!tiltCount || !colourFound) {
     Serial.println("No Tilts Repeated.");
+    #ifdef LOLIN32_OLED
+      display.clear();
+      display.drawString(64, 5, ("No Tilts Found."));
+      display.display();
+    #endif
+  
+    #ifdef I2C_16X2
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("No Tilts Found.");
+    #endif
     esp_sleep_enable_timer_wakeup((TIME_TO_SLEEP/fastSleep) * uS_TO_S_FACTOR);
   }
   else {
@@ -228,7 +269,7 @@ void setup() {
     Serial.print(TIME_TO_SLEEP);
   }
   Serial.println(" seconds ");
-  Serial.flush(); 
+  Serial.flush();
 
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_OFF);
