@@ -11,11 +11,17 @@ bool Celsius = true;            // Use Celcius while logging to serial.
 
 //#define LOLIN32_OLED          // Uncomment to enable use of the Wemos Lolin32 OLED display.
 //#define I2C_16X2              // Uncomment to enable use of the i2c 16x2 LCD display. SDA = Pin D21, SCL = Pin D22
+#define SSD1306_MODULE
 
 /*--- INCLUDES ---*/
 #include "BLEDevice.h"
 #include "BLEBeacon.h"
 #include "esp_deep_sleep.h"
+
+#ifdef SSD1306_MODULE
+  #include "SSD1306.h"
+  SSD1306 display(0x3c, 21, 22); 
+#endif
 
 #ifdef LOLIN32_OLED
   #include "SSD1306.h"
@@ -138,7 +144,7 @@ int parseTilt(String DevData) {
   Serial.println(DevData);
   Serial.println("--------------------------------");
   
-  #ifdef LOLIN32_OLED
+  #if defined(LOLIN32_OLED) || defined(SSD1306_MODULE)
     display.clear();
     display.drawString(64, 5, (DevColour + " Tilt"));
     display.drawString(64, 25, ("Temp: " + SerialTemp));
@@ -187,7 +193,7 @@ void setup() {
   Serial.println();
   Serial.println("Scanning...");
 
-  #ifdef LOLIN32_OLED
+  #if defined(LOLIN32_OLED) || defined(SSD1306_MODULE)
     display.init();
     display.flipScreenVertically();
     display.setFont(ArialMT_Plain_16);
@@ -237,7 +243,7 @@ void setup() {
 
   if (!tiltCount || !colourFound) {
     Serial.println("No Tilts Repeated.");
-    #ifdef LOLIN32_OLED
+    #if defined(LOLIN32_OLED) || defined(SSD1306_MODULE)
       display.clear();
       display.drawString(64, 5, ("No Tilts Found."));
       display.display();
