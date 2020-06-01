@@ -11,7 +11,7 @@ bool Celsius = true;            // Use Celcius while logging to serial.
 
 //#define LOLIN32_OLED          // Uncomment to enable use of the Wemos Lolin32 OLED display.
 //#define I2C_16X2              // Uncomment to enable use of the i2c 16x2 LCD display. SDA = Pin D21, SCL = Pin D22
-#define SSD1306_MODULE
+//#define SSD1306_MODULE        // Uncomment to enable use of the i2c SSD1306 OLED module. SDA = Pin D21, SCL = Pin D22
 
 /*--- INCLUDES ---*/
 #include "BLEDevice.h"
