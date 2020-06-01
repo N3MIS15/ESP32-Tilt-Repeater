@@ -4,7 +4,7 @@
 /*--- USER SETTINGS ---*/
 int SCAN_TIME = 5;              // Duration to scan for bluetooth devices (in seconds).
 int TIME_TO_SLEEP = 60;         // Duration ESP32 will go to sleep between scans (in seconds).
-int fastSleep = 4;              // Scan more often if no Tilts are found. TIME_TO_SLEEP(60) / fastSleep(4) = scan every 15 seconds. Use 0 to disable.
+int fastSleep = 4;              // Scan more often if no Tilts are found. TIME_TO_SLEEP(60) / fastSleep(4) = scan every 15 seconds. Use 1 to disable.
 int repeatColour = 0;           // Choose Tilt colour to repeat. 0=All, 1=Red, 2=Green, 3=Black, 4=Purple, 5=Orange, 6=Blue, 7=Yellow, 8=Pink.
 bool Celsius = true;            // Use Celcius while logging to serial.
 
@@ -177,19 +177,6 @@ void setup() {
   int colourFound = 1;
   Serial.begin(115200);
 
-  #ifdef LOLIN32_OLED
-    display.init();
-    display.flipScreenVertically();
-    display.setFont(ArialMT_Plain_16);
-    display.setColor(WHITE);
-    display.setTextAlignment(TEXT_ALIGN_CENTER);
-  #endif
-
-  #ifdef I2C_16X2
-    lcd.init();
-    lcd.backlight();
-  #endif
-
   BLEDevice::init("");
   //Adjust Power 3 is default, 9 is max
   esp_err_t errRc = esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_P9);
@@ -201,16 +188,24 @@ void setup() {
   Serial.println("Scanning...");
 
   #ifdef LOLIN32_OLED
+    display.init();
+    display.flipScreenVertically();
+    display.setFont(ArialMT_Plain_16);
+    display.setColor(WHITE);
+    display.setTextAlignment(TEXT_ALIGN_CENTER);
     display.clear();
     display.drawString(64, 5, ("Scanning..."));
     display.display();
   #endif
 
   #ifdef I2C_16X2
+    lcd.init();
+    lcd.backlight();
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Scanning...");
   #endif
+
   BLEScanResults foundDevices = pBLEScan->start(SCAN_TIME);
   deviceCount = foundDevices.getCount();
   Serial.print(deviceCount);
