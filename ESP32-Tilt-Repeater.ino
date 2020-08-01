@@ -2,16 +2,19 @@
 // By David Gray
 
 /*--- USER SETTINGS ---*/
-int SCAN_TIME = 5;              // Duration to scan for bluetooth devices (in seconds).
-int TIME_TO_SLEEP = 60;         // Duration ESP32 will go to sleep between scans (in seconds).
-int fastSleep = 4;              // Scan more often if no Tilts are found. TIME_TO_SLEEP(60) / fastSleep(4) = scan every 15 seconds. Use 1 to disable.
-int repeatColour = 0;           // Choose Tilt colour to repeat. 0=All, 1=Red, 2=Green, 3=Black, 4=Purple, 5=Orange, 6=Blue, 7=Yellow, 8=Pink.
-bool Celsius = true;            // Use Celcius while logging to serial.
+int SCAN_TIME =     5;          // Duration to scan for bluetooth devices (in seconds).
+int TIME_TO_SLEEP = 1800;       // Duration ESP32 will go to sleep between scans (in seconds).
+int fastSleep =     4;          // Scan more often if no Tilts are found. TIME_TO_SLEEP(1800) / fastSleep(4) = scan every 7.5 minutes. Use 1 to disable.
+int repeatColour =  0;          // Choose Tilt colour to repeat. 0=All, 1=Red, 2=Green, 3=Black, 4=Purple, 5=Orange, 6=Blue, 7=Yellow, 8=Pink.
+int scanPower =     9;          // Transmition power level while scanning. Values can be 3 (+3dbm/Default), 6 (+6dbm) or 9 (+9dbm).
+int repeatPower =   9;          // Transmition power level while repeating. Values can be 3 (+3dbm/Default), 6 (+6dbm) or 9 (+9dbm).
+bool Celsius =      true;       // Use Celcius while logging to serial.
 
 
-//#define LOLIN32_OLED          // Uncomment to enable use of the Wemos Lolin32 OLED display.
+//#define LOLIN32_OLED          // Uncomment to enable use of the Wemos Lolin32 OLED display. SDA = Pin D5, SCL = Pin D4
 //#define I2C_16X2              // Uncomment to enable use of the i2c 16x2 LCD display. SDA = Pin D21, SCL = Pin D22
 //#define SSD1306_MODULE        // Uncomment to enable use of the i2c SSD1306 OLED module. SDA = Pin D21, SCL = Pin D22
+
 
 /*--- INCLUDES ---*/
 #include "BLEDevice.h"
@@ -37,6 +40,10 @@ bool Celsius = true;            // Use Celcius while logging to serial.
 int uS_TO_S_FACTOR = 1000000;
 BLEAdvertising *pAdvertising;
 BLEScan* pBLEScan;
+esp_power_level_t powerLevels[3] = {ESP_PWR_LVL_P3, ESP_PWR_LVL_P6, ESP_PWR_LVL_P9};
+int deviceCount, tiltCount = 0;
+int colourFound = 1;
+
 
 void setBeacon(String TiltUUID, float TiltMajor, int TiltMinor) {
   BLEBeacon oBeacon = BLEBeacon();
@@ -62,6 +69,7 @@ void setBeacon(String TiltUUID, float TiltMajor, int TiltMinor) {
   pAdvertising->setAdvertisementData(oAdvertisementData);
   pAdvertising->setScanResponseData(oScanResponseData);
 }
+
 
 int parseTilt(String DevData) {
   String DevUUID, DevColour, DevTempData, DevGravityData;
@@ -161,9 +169,7 @@ int parseTilt(String DevData) {
   #endif
 
   BLEDevice::init("");
-  //Adjust Power 3 is default, 9 is max
-  esp_err_t errRc = esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_P9);
-  esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, ESP_PWR_LVL_P9);
+  esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, powerLevels[repeatPower]);
 
   pAdvertising = BLEDevice::getAdvertising();
   setBeacon(DevUUID, DevTemp, DevGravity);
@@ -179,17 +185,12 @@ int parseTilt(String DevData) {
 
 
 void setup() {
-  int deviceCount, tiltCount = 0;
-  int colourFound = 1;
   Serial.begin(115200);
-
   BLEDevice::init("");
-  //Adjust Power 3 is default, 9 is max
-  esp_err_t errRc = esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_P9);
-  esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_SCAN, ESP_PWR_LVL_P9);
-
+  esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_SCAN, powerLevels[scanPower]);
   pBLEScan = BLEDevice::getScan();
   pBLEScan->setActiveScan(true);
+
   Serial.println();
   Serial.println("Scanning...");
 
